@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@3.3.7/dist/css/bootstrap.min.css"
+        integrity="sha384-BVYiiSIFeK1dGmJRAkycuHAHRg32OmUcww7on3RYdg4Va+PmSTsz/K68vbdEjh4u" crossorigin="anonymous">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/axios/0.20.0/axios.min.js"
+        integrity="sha512-quHCp3WbBNkwLfYUMd+KwBAgpVukJu5MncuQaWXgCrfgcxCJAq/fo+oqrRKOj+UKEmyMCG3tb8RB63W+EmrOBg=="
+        crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+</head>
+
+<body>
+    <div class="container-fluid">
+        <h1 class="row">Login</h1>
+        <main>
+            <div class="row">
+                <label for="username">Username</label>
+                <input type="text" name="username" id="username">
+            </div>
+
+            <div class="row">
+                <label for="password">Password</label>
+                <input type="password" name="password" id="password">
+            </div>
+
+            <div>
+                <button onclick="login()">Login</button>
+                <button onclick="routeChange('dashboard')">Dashboard</button>
+                <button onclick="routeChange('settings')">Settings</button>
+            </div>
+        </main>
+    </div>
+
+    <script>
+
+function isTokenExpired(token) {
+        if (!token) return true;
+        const tokenData = JSON.parse(atob(token.split('.')[1]));
+        const expiration = tokenData.exp * 1000; // Convert to milliseconds
+        const currentTimestamp = Date.now();
+        console.log(expiration);
+        console.log(currentTimestamp);
+        localStorage.clear();
+        return currentTimestamp > expiration;
+    }
+    function checkTokenExpiration() {
+        const jwt = localStorage.getItem('jwt');
+        if (isTokenExpired(jwt)) {
+            console.log('Hello');
+            history.pushState(null, null, '/');
+            window.location.reload();
+        }
+    }
+    setInterval(checkTokenExpiration, 180000);
+
+        function login() {
+            const data = {
+                username: document.getElementById('username').value,
+                password: document.getElementById('password').value,
+            };
+            axios.post('/login', data)
+                .then(res => {
+                    
+                    document.getElementById('username').value = '';
+                    document.getElementById('password').value = '';
+                    if (res && res.data && res.data.success) {
+                        const token = res.data.token;
+                        localStorage.setItem('jwt', token);
+                        routeChange('dashboard');
+                    }
+                })
+                .catch(err => {
+                   
+                });
+        }
+
+        function routeChange(route) {
+            const token = localStorage.getItem('jwt');
+            axios.get(`/${route}`, {
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            }).then(res => {
+                if (res && res.data && res.data.success) {
+                    document.querySelector('h1.row').innerHTML = route.charAt(0).toUpperCase() + route.slice(1);
+                    document.querySelector('main').innerHTML = res.data.myContent;
+                    history.pushState(null, null, `/${route}`);
+                }
+            }).catch(err => {
+                
+                if (err.response.status === 401) {
+                    localStorage.removeItem('jwt');
+                    window.location.href = '/';
+                }
+            });
+        }
+
+        window.onpopstate = function(event) {
+        const path = window.location.pathname;
+        console.log(path);
+        if(path === '/') window.location.reload();
+        if(path === '/dashboard'){
+            getDashboard();
+        }
+        else if(path === '/settings') {
+            goToSettings();
+        }
+    };
+    </script>
+</body>
+
+</html>
